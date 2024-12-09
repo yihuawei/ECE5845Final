@@ -12,11 +12,6 @@ load_status = dotenv.load_dotenv("Neo4j-a3bb9820-Created-2024-11-30.txt")
 if load_status is False:
     raise RuntimeError('Environment variables not loaded.')
 
-# load_movies_csv = """
-#     LOAD CSV FROM 'https://github.com/yihuawei/ECE5845Final/blob/main/data.csv' AS row 
-#     MERGE (b:BloggerID2 {id: 10})
-# """
-
 URI = os.getenv("NEO4J_URI")
 AUTH = (os.getenv("NEO4J_USERNAME"), os.getenv("NEO4J_PASSWORD"))
 

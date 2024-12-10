@@ -96,19 +96,58 @@ class Neo4jUploader:
     def __init__(self, key_file, uploader):
         if dotenv.load_dotenv(key_file) is False:
             raise RuntimeError('Environment variables not loaded.')
-        self.URI = os.getenv("NEO4J_URI")
-        self.AUTH = (os.getenv("NEO4J_USERNAME"), os.getenv("NEO4J_PASSWORD"))
+        #self.URI = os.getenv("NEO4J_URI")
+        #self.AUTH = (os.getenv("NEO4J_USERNAME"), os.getenv("NEO4J_PASSWORD"))
+        self.URI = "neo4j://localhost"
+        self.AUTH = ("neo4j", "")
         self.meta_data_ = uploader.meta_data()
         self.content_data_ = uploader.content_data()
         self.Upload()
 
     
     def _write_user_data(self, tx, batch):
+        # query = """
+        #     UNWIND $batch AS data
+        #     Create (b:Blogger {id: toInteger(data[0]), gender: data[1], age: toInteger(data[2]), industry: data[3], sign: data[4]})
+        # """
         query = """
             UNWIND $batch AS data
-            Create (b:Blogger {id: toInteger(data[0]), gender: data[1], age: toInteger(data[2]), industry: data[3], sign: data[4]})
+            Create (b:Blogger {id: toInteger(data[0])})
+            Merge (g:Gender {gender: data[1]})
+            Merge (a:Age {age: toInteger(data[2])})
+            Merge (i:Industry {industry: data[3]})
+            Merge (s:Sign {sign: data[4]});
         """
         tx.run(query, batch=batch)
+        
+        query = """
+            UNWIND $batch AS data
+            Match (b:Blogger {id: toInteger(data[0])}), (g:Gender {gender: data[1]})
+            Create (b)-[:has_gender]->(g);
+        """
+        tx.run(query, batch=batch)
+        
+        query = """
+            UNWIND $batch AS data
+            Match (b:Blogger {id: toInteger(data[0])}), (a:Age {age: toInteger(data[2])})
+            Create (b)-[:has_age]->(a);
+        """
+        tx.run(query, batch=batch)
+
+        query = """
+            UNWIND $batch AS data
+            Match (b:Blogger {id: toInteger(data[0])}), (i:Industry {industry: data[3]})
+            Create (b)-[:has_industry]->(i);
+        """
+        tx.run(query, batch=batch)
+
+        query = """
+            UNWIND $batch AS data
+            Match (b:Blogger {id: toInteger(data[0])}), (s:Sign {sign: data[4]})
+            Create (b)-[:has_sign]->(s);
+        """
+        tx.run(query, batch=batch)
+
 
     def _write_content_data(self, tx, batch):
         query = """
@@ -125,17 +164,17 @@ class Neo4jUploader:
             print("Neo4j Connection established.")
             with driver.session(database="neo4j") as session:
                 batch_size = 100
-                # for i in range(0, len(self.meta_data_), batch_size):
-                #     batch = self.meta_data_[i:i + batch_size]
-                #     session.execute_write(self._write_user_data, batch)
-                #     print(f"{i} out of {len(self.meta_data_)} meta data have been uploaded to Neo4j server\r", end='', flush=True)
+                for i in range(0, len(self.meta_data_), batch_size):
+                    batch = self.meta_data_[i:i + batch_size]
+                    session.execute_write(self._write_user_data, batch)
+                    print(f"{i} out of {len(self.meta_data_)} meta data have been uploaded to Neo4j server\r", end='', flush=True)
                 
-                for i in range(0, len(self.content_data_), batch_size):
-                    batch = self.content_data_[i:i + batch_size]
-                    for k in batch:
-                        assert(len(k)==3)
-                    print(f"{i} out of {len(self.content_data_)} content data have been uploaded to Neo4j server\r", end='', flush=True)
-                    session.execute_write(self._write_content_data, batch)     
+                # for i in range(0, len(self.content_data_), batch_size):
+                #     batch = self.content_data_[i:i + batch_size]
+                #     for k in batch:
+                #         assert(len(k)==3)
+                #     print(f"{i} out of {len(self.content_data_)} content data have been uploaded to Neo4j server\r", end='', flush=True)
+                #     session.execute_write(self._write_content_data, batch)     
 
 
 if __name__ == '__main__':
